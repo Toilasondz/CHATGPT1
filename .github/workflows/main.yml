@@ -1,45 +1,16 @@
-name: Build H SON Independent Menu v3
+# 1. Khai báo Theos
+export THEOS="$HOME/theos"
 
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
+# 2. Vào thư mục project
+cd "$GITHUB_WORKSPACE"
 
-jobs:
-  verify-and-build:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
+# 3. Kiểm tra SDK và Theos
+test -f "$THEOS/makefiles/common.mk" || exit 1
+ls "$THEOS/sdks"
 
-      - name: Install build dependencies
-        run: brew install ldid dpkg make
+# 4. Kiểm tra mapping 4 chức năng
+python3 scripts/verify-feature-map.py
 
-      - name: Install Theos and iOS SDKs
-        shell: bash
-        run: |
-          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
-          git clone --depth 1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
-          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
-
-      - name: Verify H SON menu and independent feature mapping
-        run: python3 scripts/verify-feature-map.py
-
-      - name: Build rootless ARM64 tweak
-        run: make clean package FINALPACKAGE=1
-
-      - name: Collect release files
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release
-          find .theos/obj -name 'HSONModernMenu.dylib' -exec cp {} release/ \;
-          find packages -maxdepth 1 -name '*.deb' -exec cp {} release/ \; 2>/dev/null || true
-          cp BUILD_STATUS.md README.md NativeLogic/FEATURE_INDEX_MAP.md release/
-          test -s release/HSONModernMenu.dylib
-          file release/HSONModernMenu.dylib
-          lipo -info release/HSONModernMenu.dylib
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: VideoStarTool-HSon-Independent-Menu-v3-arm64
-          path: release/*
+# 5. Build
+make clean
+make package FINALPACKAGE=1
